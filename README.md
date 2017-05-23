@@ -8,7 +8,7 @@ As you'd expect there's minimal security, the pairing procedure is client side -
 
 At present it's just a simple script demonstrating usage.  It takes one argument which is the bluetooth address of the controller.
 
-## Domoticz Plugin
+## Domoticz Plugin
 
 A domoticz plugin which presents the controller as a switch is available. Installation is a per normal domoticz python plugins.
 
