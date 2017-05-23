@@ -7,7 +7,7 @@ As you'd expect there's minimal security, the pairing procedure is client side -
 ## Script
 
 At present it's just a simple script demonstrating usage, I'll be writing a domoticz python
-plugin soon and adding that.
+plugin soon and adding that. It takes one argument which is the bluetooth address of the controller.
 
 ## Message
 
