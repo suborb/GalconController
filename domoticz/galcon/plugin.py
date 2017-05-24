@@ -21,7 +21,10 @@ lastTime = 0
 def onStart():
     if (len(Devices) == 0):
         Domoticz.Device(Name="Status",  Unit=1, TypeName="Switch").Create()
-    GalconConnect()
+    try:
+        GalconConnect()
+    except btle.BTLEException:
+        Domoticz.Log("Failed to establish connection to device, will try again in a bit");
     return True
 
 
@@ -30,6 +33,7 @@ def GalconConnect():
     global controlCharacteristic
     global statusCharacteristic
     Domoticz.Log("Attempting to connect to " + Parameters["Address"])
+    device = None
     device = btle.Peripheral(Parameters["Address"])
     controlCharacteristic = device.getCharacteristics(uuid = "e86801039c4b11e4b5f70002a5d5c51b")[0]
     statusCharacteristic = device.getCharacteristics(uuid = "e86801029c4b11e4b5f70002a5d5c51b")[0]
@@ -48,15 +52,22 @@ def onCommand(Unit, Command, Level, Hue):
     action, sep, params = Command.partition(' ')
     action = action.capitalize()
 
-    try:
-        if action == 'On':
-            controlCharacteristic.write(bytes("\x00\x01\x00\x00\x00\x00\x00","utf-8"))
-        if action == 'Off':
-            controlCharacteristic.write(bytes("\x01\x00\x00\x00\x00\x00\x00","utf-8"))
-    except btle.BTLEException:
-        device.disconnect()
+    if device == None:
         GalconConnect()
+    success = False
+    count = 0
+    while success == False and count < 5:
+        try:
+            if action == 'On':
+                controlCharacteristic.write(bytes("\x00\x01\x00\x00\x00\x00\x00","utf-8"))
+            if action == 'Off':
+                controlCharacteristic.write(bytes("\x01\x00\x00\x00\x00\x00\x00","utf-8"))
+            success = True
+        except btle.BTLEException:
+            device.disconnect()
+            GalconConnect()
     lastTime = 0
+    Domoticz.Log("Switched successfully")
     return True
 
 def onNotification(Data):
@@ -68,6 +79,8 @@ def onHeartbeat():
     global statusCharacteristic
     global device
     now = time.time()
+    if device == None:
+        GalconConnect()
     if now - lastTime >= 300:
         try:
             status = statusCharacteristic.read()
