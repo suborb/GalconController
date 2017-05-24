@@ -21,10 +21,8 @@ lastTime = 0
 def onStart():
     if (len(Devices) == 0):
         Domoticz.Device(Name="Status",  Unit=1, TypeName="Switch").Create()
-    try:
-        GalconConnect()
-    except btle.BTLEException:
-        Domoticz.Log("Failed to establish connection to device, will try again in a bit");
+    if GalconConnect() == False:
+        Domoticz.Error("Failed to establish connection to device, will try again in a bit");
     return True
 
 
@@ -34,9 +32,19 @@ def GalconConnect():
     global statusCharacteristic
     Domoticz.Log("Attempting to connect to " + Parameters["Address"])
     device = None
-    device = btle.Peripheral(Parameters["Address"])
-    controlCharacteristic = device.getCharacteristics(uuid = "e86801039c4b11e4b5f70002a5d5c51b")[0]
-    statusCharacteristic = device.getCharacteristics(uuid = "e86801029c4b11e4b5f70002a5d5c51b")[0]
+    success = False
+    count = 0
+    while success == False and count < 3:
+        try:
+            device = btle.Peripheral(Parameters["Address"])
+            controlCharacteristic = device.getCharacteristics(uuid = "e86801039c4b11e4b5f70002a5d5c51b")[0]
+            statusCharacteristic = device.getCharacteristics(uuid = "e86801029c4b11e4b5f70002a5d5c51b")[0]
+            Domoticz.Log("Connected to " + Parameters["Address"])
+            return True
+        except btle.BTLEException:
+            device = None
+    return False
+
 
 def onConnect(Status, Description):
     return True
@@ -52,8 +60,12 @@ def onCommand(Unit, Command, Level, Hue):
     action, sep, params = Command.partition(' ')
     action = action.capitalize()
 
-    if device == None:
-        GalconConnect()
+    success = False
+    count = 0
+    if device == None and GalconConnect() == False:
+        Domoticz.Error("Failed to connect not executing command!")
+        return
+
     success = False
     count = 0
     while success == False and count < 5:
@@ -65,11 +77,11 @@ def onCommand(Unit, Command, Level, Hue):
                 controlCharacteristic.write(bytes("\x01\x00\x00\x00\x00\x00\x00","utf-8"))
                 UpdateDevice(1, 0, '')
             Domoticz.Log("Switched successfully")
+            lastTime = time.time() - 295
             success = True
         except btle.BTLEException:
             device.disconnect()
             GalconConnect()
-    lastTime = 0
     return True
 
 def onNotification(Data):
@@ -81,8 +93,9 @@ def onHeartbeat():
     global statusCharacteristic
     global device
     now = time.time()
-    if device == None:
-        GalconConnect()
+    if device == None and GalconConnect() == False:
+        Domoticz.Error("Failed to connect - can't poll status!")
+        return True
     if now - lastTime >= 300:
         try:
             status = statusCharacteristic.read()
