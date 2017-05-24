@@ -60,14 +60,16 @@ def onCommand(Unit, Command, Level, Hue):
         try:
             if action == 'On':
                 controlCharacteristic.write(bytes("\x00\x01\x00\x00\x00\x00\x00","utf-8"))
+                UpdateDevice(1, 1, '')
             if action == 'Off':
                 controlCharacteristic.write(bytes("\x01\x00\x00\x00\x00\x00\x00","utf-8"))
+                UpdateDevice(1, 0, '')
+            Domoticz.Log("Switched successfully")
             success = True
         except btle.BTLEException:
             device.disconnect()
             GalconConnect()
     lastTime = 0
-    Domoticz.Log("Switched successfully")
     return True
 
 def onNotification(Data):
